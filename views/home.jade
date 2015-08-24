@@ -1,0 +1,9 @@
+extends layout
+
+block content
+	h1.text-center.login-title Welcome #{user.firstName}. Would you like to leave a trap?
+	div#map
+	
+	button(class='btn btn-lg btn-primary btn-block', type='submit') Set Trap
+	a(href='/signout', class='text-center new-account') Sign Out
+	script(type='text/javascript', src='/javascripts/gmaps.js')

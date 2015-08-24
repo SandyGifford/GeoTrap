@@ -1,0 +1,11 @@
+extends layout
+
+block content
+	h1.text-center.login-title You're not playing a game right now
+	form(class='form-creategame', action='/creategame', method='POST')
+		input( type='text', name='trapsize' class='form-control', placeholder='Trap Size', required, autofocus )
+		input( type='text', name='traplife' class='form-control', placeholder='Trap Life', required            )
+		
+		button(class='btn btn-lg btn-primary btn-block', type='submit') Create Game
+		a(href='/signout', class='text-center new-account') Sign Out
+	script(type='text/javascript', src='/javascripts/gmaps.js')
