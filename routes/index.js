@@ -22,45 +22,6 @@ var isAuthenticated = function (req, res, next)
 };
 
 
-// Make sure to ALWAYS call gameActive before playerCanBeAdded
-var playerCanBeAdded = function (req, res, next)
-{
-	GameModel
-		.findOne({ _id: req.user.game })
-		.exec(function (err, game)
-		{
-			if (err) return handleError(err);
-			
-			UserModel
-				.findOne({ _id: game.host })
-				.exec(function (err, host)
-				{
-					if (err) return handleError(err);
-					
-					// is the player the host?
-					if(host.username == req.user.username)
-						return next();
-					else
-						res.redirect('home'); // players have pretty much no business being in this function if they're not host - no need to fancy it up with a message, this is just a security check
-					
-					
-					// is the player already in the game?
-					for(var u = 0; u < game.users.length; u++)
-					{
-						var linkedUser = game.users[u];
-						
-						if(user.linkedUser == req.body.username)
-						{
-							res.send("User " + req.body.username + " is already in this game!");
-							return;
-						}
-					}
-					
-					return next();
-				});
-		});
-};
-
 // Make sure to ALWAYS call isAuthenticated before gameActive
 var gameActive = function (req, res, next)
 {
@@ -106,33 +67,57 @@ var gameNotActive = function (req, res, next)
 
 module.exports = function(passport)
 {
-	/* GET login page. */
+	// ---------------------- GET HANDLERS ---------------------- //
+	/* GET Login Page. */
 	router.get('/', function(req, res)
 	{
 		// Display the Login page with any flash message, if any
 		res.render('index', { message : req.flash('message') });
 	});
 
-	/* Handle Login POST */
-	router.post('/login', passport.authenticate('login', {
-		successRedirect : '/home' ,
-		failureRedirect : '/'     ,
-		failureFlash    : true  
-	}));
-
-	/* GET Registration Page */
+	/* Registration Page */
 	router.get('/signup', function(req, res){
 		res.render('register', { message : req.flash('message') });
 	});
 
-	/* Handle Registration POST */
+	/* Home Page */
+	router.get('/home', isAuthenticated, gameActive, function(req, res)
+	{
+		res.render('home', { user : req.user });
+	});
+
+	// TODO: This should be renamed "creategame"
+	/* No Active Game Page */
+	router.get('/nogame', isAuthenticated, gameNotActive, function(req, res)
+	{
+//		res.send("no active game");
+		res.render('nogame', { user : req.user });
+	});
+
+	/* Join Game Page */
+	router.get('/joingame', isAuthenticated, gameNotActive, function(req, res)
+	{
+//		res.send("no active game");
+		res.render('joingame', { user : req.user });
+	});
+
+	/* Logout Page */
+	router.get('/signout', function(req, res)
+	{
+		req.logout();
+		res.redirect('/');
+	});
+
+	// ---------------------- POST HANDLERS ---------------------- //
+	
+	/* Registration */
 	router.post('/signup', passport.authenticate('signup', {
 		successRedirect : '/home'   ,
 		failureRedirect : '/signup' ,
 		failureFlash    : true
 	}));
 
-	/* Handle Create Game POST */
+	/* Create Game */
 	router.post('/creategame', isAuthenticated, gameNotActive, function(req, res)
 	{
 		var user = req.user;
@@ -167,9 +152,17 @@ module.exports = function(passport)
 			res.redirect("/home");
 		});
 	});
+	
+	/* Login */
+	router.post('/login', passport.authenticate('login', {
+		successRedirect : '/home' ,
+		failureRedirect : '/'     ,
+		failureFlash    : true  
+	}));
 
-	/* Handle Add Player POST */
-	router.post('/addplayer', isAuthenticated, gameActive, playerCanBeAdded, function(req, res)
+	//TODO: this should just be in create game.  Replace it with "invite player".
+	/* Add Player */
+	router.post('/addplayer', isAuthenticated, gameActive, function(req, res)
 	{
 		GameModel
 			.findOne({ _id: req.user.game })
@@ -201,7 +194,7 @@ module.exports = function(passport)
 			});
 	});
 	
-	/* Handle Get Game Parameters POST */
+	/* Get Game Parameters */
 	router.post('/getgameparams', isAuthenticated, gameActive, function(req, res)
 	{
 		var now = new Date().getTime() ;
@@ -270,33 +263,13 @@ module.exports = function(passport)
 			});
 	});
 
-	/* Handle Set Trap POST */
+	/* Set Trap */
 	router.post('/settrap', isAuthenticated, gameNotActive, function(req, res)
 	{
 		var user = req.user  ;
 		var game = user.game ;
 		
 		
-	});
-
-	/* GET Home Page */
-	router.get('/home', isAuthenticated, gameActive, function(req, res)
-	{
-		res.render('home', { user : req.user });
-	});
-
-	/* GET no active game page */
-	router.get('/nogame', isAuthenticated, gameNotActive, function(req, res)
-	{
-//		res.send("no active game");
-		res.render('nogame', { user : req.user });
-	});
-
-	/* Handle Logout */
-	router.get('/signout', function(req, res)
-	{
-		req.logout();
-		res.redirect('/');
 	});
 
 	return router;
