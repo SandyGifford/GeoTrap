@@ -7,6 +7,7 @@ var playerOneColor = "green";
 var playerColors = [ "red", "orange", "blue", "cyan", "purple" ]; // TODO: add more colors
 
 
+
 function handleError(err)
 {
 	throw err; // TODO: something better than this, please
@@ -46,13 +47,13 @@ var gameActive = function (req, res, next)
 						//...
 					});
 					
-					res.redirect('nogame');
+					res.redirect('creategame');
 				}
 			});
 	}
 	else
 	{
-		res.redirect('nogame');
+		res.redirect('creategame');
 	}
 };
 
@@ -68,39 +69,38 @@ var gameNotActive = function (req, res, next)
 module.exports = function(passport)
 {
 	// ---------------------- GET HANDLERS ---------------------- //
+	
 	/* GET Login Page. */
 	router.get('/', function(req, res)
 	{
 		// Display the Login page with any flash message, if any
 		res.render('index', { message : req.flash('message') });
 	});
-
+	
 	/* Registration Page */
-	router.get('/signup', function(req, res){
+	router.get('/signup', function(req, res)
+	{
 		res.render('register', { message : req.flash('message') });
 	});
-
+	
 	/* Home Page */
 	router.get('/home', isAuthenticated, gameActive, function(req, res)
 	{
 		res.render('home', { user : req.user });
 	});
-
-	// TODO: This should be renamed "creategame"
-	/* No Active Game Page */
-	router.get('/nogame', isAuthenticated, gameNotActive, function(req, res)
+	
+	/* Create Game Page */
+	router.get('/creategame', isAuthenticated, gameNotActive, function(req, res)
 	{
-//		res.send("no active game");
-		res.render('nogame', { user : req.user });
+		res.render('creategame', { user : req.user });
 	});
-
+	
 	/* Join Game Page */
 	router.get('/joingame', isAuthenticated, gameNotActive, function(req, res)
 	{
-//		res.send("no active game");
 		res.render('joingame', { user : req.user });
 	});
-
+	
 	/* Logout Page */
 	router.get('/signout', function(req, res)
 	{
@@ -116,7 +116,7 @@ module.exports = function(passport)
 		failureRedirect : '/signup' ,
 		failureFlash    : true
 	}));
-
+	
 	/* Create Game */
 	router.post('/creategame', isAuthenticated, gameNotActive, function(req, res)
 	{
@@ -126,7 +126,7 @@ module.exports = function(passport)
 		var trapLife = parseFloat(req.body.traplife) ;
 		
 		if(isNaN(trapSize) || isNaN(trapLife))
-			res.redirect("/nogame");
+			res.redirect("/creategame");
 		
 		var game = new GameModel({
 			trapSize : trapSize ,
@@ -159,11 +159,19 @@ module.exports = function(passport)
 		failureRedirect : '/'     ,
 		failureFlash    : true  
 	}));
-
-	//TODO: this should just be in create game.  Replace it with "invite player".
-	/* Add Player */
-	router.post('/addplayer', isAuthenticated, gameActive, function(req, res)
+	
+	/* Invite Player */
+	router.post('/inviteplayer', isAuthenticated, gameActive, function(req, res)
 	{
+		UserModel
+			.findOne({ username : req.body.username })
+			.exec(function (err, newPlayer)
+			{
+				if (err) return handleError(err);
+				
+				
+			});
+		/*
 		GameModel
 			.findOne({ _id: req.user.game })
 			.exec(function (err, game)
@@ -192,6 +200,7 @@ module.exports = function(passport)
 						});
 					});
 			});
+		*/
 	});
 	
 	/* Get Game Parameters */
@@ -262,7 +271,7 @@ module.exports = function(passport)
 				}
 			});
 	});
-
+	
 	/* Set Trap */
 	router.post('/settrap', isAuthenticated, gameNotActive, function(req, res)
 	{
