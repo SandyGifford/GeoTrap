@@ -9,12 +9,13 @@ var locations = new mongoose.Schema({
 
 var userWrapper = new mongoose.Schema({
 	link  : { type : ObjectId, ref : 'User' } ,
-	color : String                                   ,
+	color : String                            ,
 	locs  : [locations]
 });
 
 module.exports = mongoose.model('Game', {
-	users    : [userWrapper] ,
-	trapSize : Number        ,
+	users    : [userWrapper]                     ,
+	host     : { type : ObjectId, ref : 'User' } ,
+	trapSize : Number                            ,
 	trapLife : Number
 });
