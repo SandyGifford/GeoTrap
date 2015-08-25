@@ -1,7 +1,7 @@
 extends layout
 
 block content
-	h1.text-center.login-title You're not playing a game right now
+	h1.text-center.login-title Create New Game
 	form#GameForm.form-create(action='/creategame', method='POST')
 		
 		
@@ -12,11 +12,16 @@ block content
 			input.form-control( type='text', name='traplife', placeholder='Trap Life', required )
 			span.input-group-addon days
 	
-	ul#Players
+	ul#Players.dynamic-list
+		li
+			i.dynamic-list-addon.fa.fa-times
+			| PacmanBitsPacmanBitsPacmanBitsPacmanBitsPacmanBitsPacmanBits
 	input#NewPlayer.form-control( type='text', placeholder='Players (comma separated)' )
-	button#InvitePlayer.btn.btn-lg.btn-block Invite Player
-	button#CreateGame.btn.btn-lg.btn-primary.btn-block Create Game
+	
+	button#InvitePlayer.btn.btn-lg.btn-block           Invite Player
+	button#CreateGame.btn.btn-lg.btn-primary.btn-block Start Game
 	
 	a.btn.btn-lg.btn-default.btn-block(href='/joingame') Invites
-	a.text-center.new-account(href='/signout') Sign Out
+	a.text-center.new-account(href='/signout')           Sign Out
+	
 	script(type='text/javascript', src='/javascripts/creategame.js')

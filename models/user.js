@@ -3,7 +3,7 @@ var ObjectId = mongoose.Schema.Types.ObjectId;
 
 
 var invite = new mongoose.Schema({
-	user     : { type : ObjectId, ref : 'User' } ,
+	from     : { type : ObjectId, ref : 'User' } ,
 	accepted : Boolean
 });
 

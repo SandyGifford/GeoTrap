@@ -2,14 +2,13 @@ extends layout
 
 block content
 	h1.text-center.login-title Sign in to continue
-	div.account-wall
-		img(class='profile-img', src='https://lh5.googleusercontent.com/-b0-k99FZlyE/AAAAAAAAAAI/AAAAAAAAAAA/eu7opA4byxI/photo.jpg?sz=120')
-		form(class='form-signin', action='/login', method='POST')
-			input(type='text', name='username' class='form-control', placeholder='Username',required, autofocus)
-			input(type='password', name='password' class='form-control', placeholder='Password', required)
-			button(class='btn btn-lg btn-primary btn-block', type='submit') Sign in
+	div
+		form(action='/login', method='POST')
+			input.form-control( type='text',     name='username', placeholder='Username', required, autofocus )
+			input.form-control( type='password', name='password', placeholder='Password', required            )
+			button.btn.btn-lg.btn-primary.btn-block( type='submit') Sign in
 			span.clearfix
-	a(href='/signup', class='text-center new-account') Create an account
+	a(href='/signup') Create an account
 	#message
 	if message
 		h1.text-center.error-message #{message}

@@ -1,93 +1,64 @@
-body {
-  padding: 50px;
-  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+body
+{
 }
 
-a {
-  color: #00B7FF;
+a
+{
+	color:                      #00B7FF;
 }
 
 #map
 {
-	width: 100%;
+	width:                      100%;
 }
 
-.form-signin{
-    max-width: 330px;
-    padding: 15px;
-    margin: 0 auto;
+h1.error-message
+{
+	color:                      red;
 }
-.form-signin .form-signin-heading, .form-signin .checkbox{
-    margin-bottom: 10px;
+
+ul.dynamic-list
+{
+	list-style:                 none;
+	padding:                    0;
+	margin:                     0;
 }
-.form-signin .checkbox{
-    font-weight: normal;
+
+ul.dynamic-list > li
+{
+	padding:                    0.1em 1.5em 0.75em 1.5em;
+	position:                   relative;
+	margin:                     0.5em;
+	background-color:           #999;
+	color:                      white;
+	border-radius:              0.5em;
+	line-height:                2.5em;
+	height:                     2.5em;
+	font-weight:                bold;
+	word-break:                 break-all;
+	overflow:                   hidden;
 }
-.form-signin .form-control{
-    position: relative;
-    font-size: 16px;
-    height: auto;
-    padding: 10px;
-    -webkit-box-sizing: border-box;
-    -moz-box-sizing: border-box;
-    box-sizing: border-box;
+
+ul.dynamic-list > li::after
+{
+	content:                    "";
+	position:                   absolute;
+	top:                        0;
+	left:                       0;
+	right:                      0;
+	bottom:                     0;
+	border:                     0.2em white solid;
+	margin:                     0.3em;
+	border-radius:              0.4em;
+	pointer-events:             none;
 }
-.form-signin .form-control:focus{
-    z-index: 2;
-}
-.form-signin input[type="text"]{
-    margin-bottom: -1px;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-}
-.form-signin input[type="password"]{
-    margin-bottom: 10px;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-}
-.form-signin input[type="password"].nomargin{
-	margin-bottom: 0px;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-}
-.account-wall{
-    margin-top: 20px;
-    padding: 40px 0px 20px 0px;
-    background-color: #f7f7f7;
-    -moz-box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.3);
-    -webkit-box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.3);
-    box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.3);
-}
-.signup-wall{
-	margin-top: 20px;
-    padding: 20px 0px 20px 0px;
-    background-color: #f7f7f7;
-    -moz-box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.3);
-    -webkit-box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.3);
-    box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.3);	
-}
-.login-title{
-    color: #555;
-    font-size: 18px;
-    font-weight: 400;
-    display: block;
-}
-.profile-img{
-    width: 96px;
-    height: 96px;
-    margin: 0 auto 10px;
-    display: block;
-    -moz-border-radius: 50%;
-    -webkit-border-radius: 50%;
-    border-radius: 50%;
-}
-.new-account{
-    display: block;
-    margin-top: 10px;
-}
-h1.error-message{
-    color: red;
-}
-ul.user-details{
-    list-style: none;
+
+.dynamic-list-addon
+{
+	display:                    block;
+	float:                      right;
+	border-left:                1px solid white;
+	padding:                    0.1em 0.4em 0.1em 0.4em;
+	margin:                     0.55em -1em 0 0;
+	cursor:                     pointer;
 }

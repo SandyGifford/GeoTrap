@@ -3,12 +3,8 @@ extends layout
 block content
 	h1.text-center.login-title Create an Account
 		div.signup-wall
-			form(class='form-signin', action='/signup', method='POST')
-				input(type='text', name='username', class='form-control', placeholder='Username',required, autofocus)
-				input(type='password', name='password', class='form-control nomargin', placeholder='Password', required)
-				input(type='email', name='email', class='form-control', placeholder='Email',required)
-				button(class='btn btn-lg btn-primary btn-block', type='submit') Register
-				span.clearfix
-		#message
-			if message
-				h1.text-center.error-message #{message}
+			form(action='/signup', method='POST')
+				input.form-control(type='text', name='username', placeholder='Username',required, autofocus)
+				input.form-control.nomargin(type='password', name='password', placeholder='Password', required)
+				input.form-control(type='email', name='email', placeholder='Email',required)
+				button.btn.btn-lg.btn-primary.btn-block(type='submit') Register

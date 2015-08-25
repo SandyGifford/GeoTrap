@@ -4,10 +4,9 @@ block content
 	h1.text-center.login-title Hello #{user.username}. Would you like to leave a trap?
 	div#Map
 	
-	button(class='btn btn-lg btn-primary btn-block' id='SetTrap') Set Trap
-	button(class='btn btn-lg btn-primary btn-block' id='UpdatePosition') Update Position
-	a(href='/signout', class='text-center new-account') Sign Out
-	script.
-		
+	button#SetTrap.btn.btn-lg.btn-primary.btn-block        Set Trap
+	button#UpdatePosition.btn.btn-lg.btn-primary.btn-block Update Position
+	a(href='/signout') Sign Out
+	
 	script(type='text/javascript', src='/javascripts/gmaps.js')
 	script(type='text/javascript', src='/javascripts/home.js')

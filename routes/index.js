@@ -160,47 +160,85 @@ module.exports = function(passport)
 		failureFlash    : true  
 	}));
 	
-	/* Invite Player */
-	router.post('/inviteplayer', isAuthenticated, gameActive, function(req, res)
+	
+	/* Retrieve Accepted Invites */
+	router.post('/acceptedinvites', isAuthenticated, function(req, res)
 	{
+		
+	});
+	
+	/* Accept Invite */
+	router.post('/acceptinvite', isAuthenticated, gameNotActive, function(req, res)
+	{
+		var hostname = req.body.hostname ;
+		var invites  = req.user.invites  ;
+		var invCount = 0;
+		
+		for(var i = 0; i < invites.length; i++)
+		{
+			var invite = invites[i];
+			
+			UserModel
+				.findOne({ _id : invite.from })
+				.exec(function (err, host)
+				{
+					if(host.username == hostname)
+					{
+						invite.accepted = true;
+					}
+					else
+					{
+						invite.accepted = false; // make sure only one invite is accepted
+					}
+					
+					host.save(function (err)
+					{
+						if (err) return handleError(err);
+						
+						invCount++;
+						
+						if(invCount == invites.length)
+							res.send(true);
+					});
+				});
+		}
+	});
+	
+	/* Invite Player */
+	router.post('/inviteplayer', isAuthenticated, gameNotActive, function(req, res)
+	{
+		if(req.username == req.body.username)
+		{
+			res.send(false);
+			return;
+		}
+		
 		UserModel
 			.findOne({ username : req.body.username })
 			.exec(function (err, newPlayer)
 			{
+				if(!newPlayer) // check for no player before handling other errors
+				{
+					res.send(false);
+					return;
+				}
+				
 				if (err) return handleError(err);
 				
+				newPlayer.invites.push({
+					from     : req.user ,
+					accepted : false
+				});
 				
+				newPlayer.save(function (err)
+				{
+					if (err) return handleError(err);
+					
+					console.log('Player ' + newPlayer.username + ' invited to ' + req.user.username + '\'s game');
+					
+					res.send(true);
+				});
 			});
-		/*
-		GameModel
-			.findOne({ _id: req.user.game })
-			.exec(function (err, game)
-			{
-				if (err) return handleError(err);
-				
-				UserModel
-					.findOne({ _id: req.body.username })
-					.exec(function (err, newPlayer)
-					{
-						if (err) return handleError(err);
-						
-						var color = playerColors[game.users.length % playerColors.length];
-						
-						game.users.push({
-							link  : newPLayer ,
-							color : color     ,
-							locs  : []
-						});
-						
-						game.save(function (err)
-						{
-							if (err) return handleError(err)
-								
-							console.log('Added player ' + req.body.username + ' to game');
-						});
-					});
-			});
-		*/
 	});
 	
 	/* Get Game Parameters */

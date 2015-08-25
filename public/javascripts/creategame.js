@@ -1,7 +1,9 @@
 $(function()
 {
-	var form = $("#GameForm");
-	var newPlayer = $("#NewPlayer");
+	var form       = $("#GameForm")  ;
+	var newPlayer  = $("#NewPlayer") ;
+	var playerList = $("#Players")   ;
+	var players    = {}              ;
 	
 	var submit = $("#CreateGame")
 		.click(function()
@@ -12,6 +14,30 @@ $(function()
 	var invite = $("#InvitePlayer")
 		.click(function()
 		{
-			var 
+			var username = newPlayer.val();
+			
+			if(typeof players[username] !== "undefined")
+				return;
+			
+			$.ajax({
+				type     : "POST"     ,
+				url      : "/inviteplayer" ,
+				data     : {
+					username : username
+				},
+				success  : function(itWorked)
+				{
+					if(itWorked)
+					{
+						var li = $("<li>")
+							.text(username)
+							.appendTo(playerList);
+						
+						players[username] = {
+							el : li
+						};
+					}
+				}
+			});
 		});
 });
