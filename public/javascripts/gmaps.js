@@ -85,7 +85,10 @@ var gMap = {};
 				map.setCenter(loc);
 				
 				if(callback)
-					callback(loc);
+					callback({
+						lat : position.coords.latitude  ,
+						lng : position.coords.longitude
+					});
 			},
 			function()
 			{

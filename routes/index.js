@@ -1,16 +1,25 @@
 var express   = require('express')        ;
 var router    = express.Router()          ;
+var geolib    = require('geolib')         ;
 var UserModel = require('../models/user') ;
 
 var playerOneColor = "green";
 var playerColors = [ "red", "orange", "blue", "cyan", "purple" ]; // TODO: add more colors
 
-
+// needs a better home
+var gameInfo = {
+	trapSize     : 500  , // Meters
+	goalSize     : 2000 , // Meters
+	trapStartDur : 3    , // Hits until expired
+	goalPoints   : 10   ,
+	trapPenalty  : 2    , // Penalty for setting off a trap
+	trapPoints   : 1      // Points for getting someone in your trap+
+};
 
 
 
 // ---------------------- SUPPORT FUNCTIONS ---------------------- //
-s
+
 function getUserByID(userID, callback)
 {
 	getUser("_id", userID, callback);
@@ -34,6 +43,30 @@ function getUser(key, value, callback)
 			
 			callback(user);
 		});
+}
+
+function getUsers(key, value, callback)
+{
+	var param = {};
+	param[key] = value;
+	
+	UserModel
+		.find(param)
+		.exec(function (err, users)
+		{
+			if (err) return console.error(err);
+			
+			callback(users);
+		});
+}
+
+function setTrap(user, lat, lng)
+{
+	user.trap = {
+		dur : gameInfo.trapStartDur ,
+		lat : lat                   ,
+		lng : lng
+	};
 }
 
 function handleError(err)
@@ -60,6 +93,8 @@ var isAuthenticated = function (req, res, next)   // fail -> /
 
 
 
+
+
 module.exports = function(passport)
 {
 	// ---------------------- GET HANDLERS ---------------------- //
@@ -78,7 +113,7 @@ module.exports = function(passport)
 	});
 	
 	/* Home Page */
-	router.get('/home', gameHasStarted, function(req, res)
+	router.get('/home', isAuthenticated, function(req, res)
 	{
 		res.render('home', { user : req.user, message : req.flash('message') });
 	});
@@ -89,14 +124,6 @@ module.exports = function(passport)
 		req.logout();
 		res.redirect('/');
 	});
-	
-	
-	
-	
-	
-	
-	
-	
 	
 	
 	
@@ -119,18 +146,100 @@ module.exports = function(passport)
 		failureFlash    : true  
 	}));
 	
-	/* Get Game Parameters */
-	router.post('/getgameparams', gameHasStarted, function(req, res)
+	/* Get Game Parameters - data that does not change */
+	router.post('/gameparams', isAuthenticated, function(req, res)
 	{
+		res.send({
+			trapSize : gameInfo.trapSize ,
+			goalSize : gameInfo.goalSize
+		}); 
+	});
+	
+	/* Get Game Info - data updates over the course of the game */
+	router.post('/gameinfo', isAuthenticated, function(req, res)
+	{
+	});
+	
+	/* Get Player Info */
+	router.post('/playerinfo', isAuthenticated, function(req, res)
+	{
+		var currentUser = req.user;
 		
+		var info = {
+			score : currentUser.score
+		};
+		
+		if(currentUser.trap.dur > 0)
+		{
+			info.trap = {
+				lat : currentUser.trap.lat ,
+				lng : currentUser.trap.lng
+			};
+		}
+		
+		res.send(info);
 	});
 	
 	/* Set Trap */
-	router.post('/settrap', gameHasStarted, function(req, res)
+	router.post('/settrap', isAuthenticated, function(req, res)
 	{
-		var user = req.user  ;
+		var currentUser = req.user ;
+		var hitTraps    = []       ;
 		
+		var userLoc     = {
+			lat : req.body.lat ,
+			lng : req.body.lng
+		};
 		
+		if(typeof userLoc.lat !== "number" || typeof userLoc.lng !== "number")
+			res.send({ set : false, hit : false, hits : [] });
+		
+		UserModel
+			.find({ "trap.dur" : { $gt : 0 } }, function(err, users)
+			{
+				for(var u = 0; u < users.length; u++)
+				{
+					var trapSetter = users[u];
+					
+					if(trapSetter != currentUser)
+					{
+						var dist = geolib.getDistance(
+							{ latitude : trapSetter.trap.lat, longitude : trapSetter.trap.lng },
+							{ latitude : userLoc.lat,         longitude : userLoc.lng         }
+						);
+						
+						// hit trap
+						if(dist < gameInfo.trapSize)
+						{
+							hitTraps.push({
+								setter : trapSetter.username ,
+								lat    : trapSetter.trap.lat ,
+								lng    : trapSetter.trap.lng
+							});
+							
+							currentUser.score -= gameInfo.trapPenalty ;
+							trapSetter.score  += gameInfo.trapPoints  ;
+							
+							trapSetter.trap.dur--;
+							
+							if(currentUser.score < 0)
+								currentUser.score == 0;
+							
+							trapSetter.save(function(err) {});
+						}
+					}
+				}
+				
+				var hitATrap = hitTraps.length > 0;
+				
+				if(!hitATrap)
+					setTrap(currentUser, userLoc.lat, userLoc.lng);
+				
+				currentUser.save(function(err)
+				{
+					res.send({ set : !hitATrap, hit : hitATrap, hits : hitTraps });
+				});
+			});
 	});
 
 	return router;

@@ -1,12 +1,15 @@
 extends layout
 
 block content
-	h1.text-center.login-title Hello #{user.username}. Would you like to leave a trap?
+	h1.text-center.login-title What would you like to do?
 	div#Map
 	
 	button#SetTrap.btn.btn-lg.btn-primary.btn-block        Set Trap
-	button#UpdatePosition.btn.btn-lg.btn-primary.btn-block Update Position
-	a(href='/signout') Sign Out
+	button#Counter.btn.btn-lg.btn-default.btn-block        Use Counter Measure
+	button#UpdatePosition.btn.btn-lg.btn-default.btn-block Update Position
+	span Signed in as #{user.username} (
+		a(href='/signout') Sign Out
+		| )
 	
 	script(type='text/javascript', src='/javascripts/gmaps.js')
 	script(type='text/javascript', src='/javascripts/home.js')

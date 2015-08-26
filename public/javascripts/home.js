@@ -1,125 +1,164 @@
-(function()
+(function($)
 {
-	var trapSize;
-	var trapLife;
+	var markers = {
+		player   : {},
+		location : {}
+	};
+	var playerLoc = {};
+	var trapSize, trapLife;
+	var map;
+	var enemyTrapMarkers = [];
+	var gameParams;
+	
+	var buttons = {};
 	
 	$(function()
 	{
-		var map       = $("#Map")            ;
-		var setTrap   = $("#SetTrap")        ;
-		var updatePos = $("#UpdatePosition") ;
+		var map           = $("#Map")            ;
 		
-		var newTrapRadius;
-		var newTrapMarker;
-		var playerMarkers = [];
+		buttons.setTrap   = $("#SetTrap")        ;
+		buttons.counter   = $("#Counter")        ;
+		buttons.updatePos = $("#UpdatePosition") ;
 		
 		map.css({"height" : map.width() + "px"});
 		
+		buttons.setTrap.click(postTrap);
 		
+		buttons.updatePos.click(updateEverything);
+		
+		disableButtons();
 		
 		// For now there's no reason to not load the map from the get-go, but if this ever turns into a REST app, the ability to delay the loading of the map would be invaluable.
 		gMap.load(map, function(loc)
 		{
 			mapLoaded = true;
-			gMap.centerOnGeoloc(updateComplete);
-		});
-		
-		setTrap.click(function()
-		{
 			
-		});
-		
-		gMap.postTrap = function()
-		{
-			$.ajax({
-				type     : "POST"     ,
-				url      : "/settrap" ,
-				data     : {
-//					lat : playerLoc.latitude  ,
-//					lon : playerLoc.longitu
-					lat : 0  ,
-					lon : 0
-				},
-				success  : success
+			startGame(function()
+			{
+				updateEverything();
 			});
-		};
+		});
+	});
+	
+	
+	function startGame(callback)
+	{
+		$.ajax({
+			type    : "POST"         ,
+			url     : "/gameparams"  ,
+			success : function(data)
+			{
+				gameParams = data;
+				
+				if(callback)
+					callback();
+			}
+		});
+	}
+	
+	function disableButtons()
+	{
+		for(var b in buttons)
+			buttons[b].prop("disabled", true);
+	}
+	
+	function enableButtons()
+	{
+		for(var b in buttons)
+			buttons[b].prop("disabled", false);
+	}
+
+	function postTrap()
+	{
+		disableButtons();
 		
-		updatePos.click(updateAndCenter);
-		
-		function updateAndCenter()
-		{
-			disableButtons();
-			
-			gMap.centerOnGeoloc(updateComplete);
-		}
-		
-		function updateComplete(loc)
-		{
-			$.ajax({
-				type : "POST"     ,
-				url  : "/getgameparams" ,
-				data : {
-					lat : 0 ,
-					lon : 0
-				},
-				success : function(gameInfo)
+		$.ajax({
+			type    : "POST"     ,
+			url     : "/settrap" ,
+			data    : playerLoc  ,
+			success : function(data)
+			{
+				// { set : !hitATrap, hits : hitTraps }
+				
+				for(var h = 0; h < data.hits.length; h++)
 				{
-					if(newTrapRadius)
-						newTrapRadius.setMap(null);
-					if(newTrapMarker)
-						newTrapMarker.setMap(null);
-					
-					for(var m = 0; m < playerMarkers.length; m++)
-						playerMarkers[m].setMap(null);
-					
-					playerMarkers = [];
-					
-					newTrapRadius = gMap.drawRadius(loc, gameInfo.trapSize, gameInfo.currentPlayer.color);
-					newTrapMarker = gMap.dropMarker({
-						position : loc,
-						message  : "Current Location",
-						icon     : {
-							url    : "/images/anibgren.gif"       , // TODO: make my own damn image (http://www.avbuffjr.com/ani_gifs/anibgren.gif)
-							size   : new google.maps.Size(10, 10) ,
-							origin : new google.maps.Point(0, 0)  ,
-							anchor : new google.maps.Point(5, 5)
-						}
-					});
-					
-					gMap.fitBounds(newTrapRadius);
-					
-					for(var p = 0; p < gameInfo.players.length; p++)
-					{
-						var player = gameInfo.players[p];
-						
-						for(var l = 0; l < player.locs.length; l++)
-						{
-							var trapLoc = player.locs[l];
-							
-							playerMarkers.push(gMap.dropMarker({
-								position : { latitude : trapLoc.lat, longitude : trapLoc.lon },
-								message  : "Expired Trap"
-							}));
-						}
-					}
-					
-					enableButtons();
+					enemyTrapMarkers.push(gMap.drawRadius(data.hits[h], gameParams.trapSize, "red"));
+				}
+				
+				updatePlayer(enableButtons);
+			}
+		});
+	}
+	
+	function updateEverything()
+	{
+		disableButtons();
+		
+		updateLocation(function()
+		{
+			updatePlayer(enableButtons);
+		});
+	}
+	
+	function updateLocation(callback)
+	{
+		gMap.centerOnGeoloc(function(loc)
+		{
+			playerLoc = loc;
+			
+			for(var m in markers.location)
+			{
+				var marker = markers.location[m];
+				
+				if(marker && marker.setMap)
+					marker.setMap(null);
+				
+				delete markers.location[m];
+			}
+			
+			markers.location.currentRadius = gMap.drawRadius(playerLoc, gameParams.trapSize, "black");
+			markers.location.currentMarker = gMap.dropMarker({
+				position : playerLoc,
+				message  : "Current Location",
+				icon     : {
+					url    : "/images/anibgren.gif"       , // TODO: make my own damn image (http://www.avbuffjr.com/ani_gifs/anibgren.gif)
+					size   : new google.maps.Size(10, 10) ,
+					origin : new google.maps.Point(0, 0)  ,
+					anchor : new google.maps.Point(5, 5)
 				}
 			});
-		}
-		
-		function disableButtons()
-		{
-			updatePos.prop('disabled', true);
-			setTrap.prop('disabled', true);
-		}
-		
-		function enableButtons()
-		{
-			updatePos.prop('disabled', false);
-			setTrap.prop('disabled', false);
-		}
-		
-		disableButtons();
-	});
-})();
+			
+			gMap.fitBounds(markers.location.currentRadius);
+			
+			if(callback)
+				callback();
+		});
+	}
+	
+	function updatePlayer(callback)
+	{
+		$.ajax({
+			type    : "POST"        ,
+			url     : "/playerinfo" ,
+			success : function(playerInfo)
+			{
+				for(var m in markers.player)
+				{
+					var marker = markers.player[m];
+					
+					if(marker && marker.setMap)
+						marker.setMap(null);
+					
+					delete markers.player[m];
+				}
+				
+				if(playerInfo.trap)
+					markers.player.trap = gMap.drawRadius(playerInfo.trap, gameParams.trapSize, "blue");
+				
+				if(callback)
+					callback();
+			}
+		});
+	}
+	
+})(jQuery);

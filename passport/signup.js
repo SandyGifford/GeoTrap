@@ -31,11 +31,9 @@ module.exports = function(passport)
 							// create the user
 							var newUser = new User();
 							
-							newUser.username   = username             ;
-							newUser.password   = createHash(password) ;
-							newUser.email      = req.param('email')   ;
-							newUser.score      = 0                    ;
-							newuser.trapActive = false                ;
+							newUser.username = username             ;
+							newUser.password = createHash(password) ;
+							newUser.email    = req.param('email')   ;
 							
 							newUser.save(function(err)
 							{
