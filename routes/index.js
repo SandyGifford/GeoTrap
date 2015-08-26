@@ -11,22 +11,37 @@ var playerColors = [ "red", "orange", "blue", "cyan", "purple" ]; // TODO: add m
 
 // ---------------------- SUPPORT FUNCTIONS ---------------------- //
 
-function leaveGame(user, callback)
+function clearInvites(user, callback)
 {
-	if(!user.gameHost)
+	var invites = user.invites;
+	var invitesProcessed = 0;
+	
+	if(invites.length == 0)
 	{
-		callback();
+		if(callback)
+			callback();
+		
 		return;
 	}
 	
-	user.gameHost = null;
-	user.save(function (err)
+	for(var i = 0; i < invites.length; i++)
 	{
-		if (err) return console.error(err);
-		
-		callback();
-	});
-};
+		(function(invite)
+		{
+			user.invites = [];
+			
+			user.save(function (err)
+			{
+				if (err) return console.error(err);
+				
+				invitesProcessed++;
+				
+				if(callback && invitesProcessed >= invites.length)
+					callback();
+			});
+		})(invites[i])
+	}
+}
 
 function forEachPlayerInGame(game, each, callback)
 {
@@ -77,31 +92,95 @@ function playerInGame(player, game, callbacks)
 	);
 }
 
-function endHostedGame(user, callback)
+function leaveGame(user, callback)
 {
-	if(!user.hostedGame)
+	if(!user.gameHost)
 	{
 		callback();
 		return;
 	}
 	
-	forEachPlayerInGame(
-		user.hostedGame,
-		function(player, done)
+	getUserByID(user.gameHost, function(host)
+	{
+		var players = host.hostedGame.players;
+		var p;
+		
+		
+		for(p = 0; p < players.length && players[p].link.toString() != user._id; p++) { }
+		
+		if(p < players.length)
+			players.splice(p, 1);
+		
+		host.save(function (err)
 		{
-			leaveGame(player, done);
-		},
-		function()
-		{
-			user.hostedGame = null;
+			if (err) return console.error(err);
+		
+			user.gameHost = null;
+			var newInvites = user.invites;
+			
+			for(var i = 0; i < user.invites.length; i++)
+			{
+				if(user.invites[i].host == host._id )
+				{
+					newInvites = user.invites.slice(i, i + 1);
+				}
+			}
+			
+			user.invites = newInvites;
+			
 			user.save(function (err)
 			{
 				if (err) return console.error(err);
 				
 				callback();
 			});
-		}
-	);
+		});
+	});
+};
+
+function clearClientPlayers(host, callback)
+{
+	var clientsProcessed = 0;
+	
+	UserModel
+		.find({ 'gameHost' : host }, function(err, clients)
+		{
+			if (err) return console.error(err);
+			
+			if(clients.length == 0)
+			{
+				if(callback)
+					callback();
+				
+				return;
+			}
+			
+			for(var c = 0; c < clients.length; c++)
+			{
+				leaveGame(clients[c], function()
+				{
+					clientsProcessed++;
+					if(clientsProcessed >= clients.length && callback)
+						callback();
+				});
+			}
+		});
+}
+
+function endHostedGame(host, callback)
+{
+	clearClientPlayers(host, function()
+	{
+		host.hostedGame = null;
+		
+		host.save(function (err)
+		{
+			if (err) return console.error(err);
+			
+			if(callback)
+				callback();
+		});
+	});
 }
 
 function getGame(user, callback)
@@ -195,7 +274,7 @@ var isHostingGame = function (req, res, next)     // fail -> /creategame
 	{
 		var gameHost = req.user.gameHost;
 		
-		if(gameHost == req.user)
+		if(gameHost.toString() == req.user._id)
 			return next();
 		else
 			res.redirect('/creategame');
@@ -217,11 +296,11 @@ var isNotHostingGame = function (req, res, next)  // fail -> /home
 
 var gameHasNotStarted = function (req, res, next) // fail -> /home
 {
-	isInGame(req, res, function()
+	isAuthenticated(req, res, function()
 	{
 		getGame(req.user, function(game)
 		{
-			if(!game.started)
+			if(!game || !game.started)
 				return next();
 			else
 				res.redirect('/home');
@@ -276,31 +355,37 @@ module.exports = function(passport)
 	{
 		var user = req.user;
 		
-		user.hostedGame = {
-			players   : [{
-				link  : user            ,
-				color : playerColors[0] ,
-				locs  : []
-			}],
-			started   : false
-		};
-		
-		user.gameHost = user;
-		
-		user.save(function (err, user)
+		endHostedGame(user, function()
 		{
-			if (err) return console.error(err);
+			user.hostedGame = {
+				players   : [{
+					link  : user            ,
+					color : playerColors[0] ,
+					locs  : []
+				}],
+				started   : false
+			};
 			
-			res.redirect("/home");
+			user.gameHost = user;
+			
+			user.save(function (err, user)
+			{
+				if (err) return console.error(err);
+				
+				res.redirect("/home");
+			});
+			
+			res.render('creategame', { user : req.user, message : req.flash('message')  });
 		});
-		
-		res.render('creategame', { user : req.user, message : req.flash('message')  });
 	});
 	
 	/* Join Game Page */
-	router.get('/joingame', isNotInGame, function(req, res)
+	router.get('/joingame', gameHasNotStarted, function(req, res)
 	{
-		res.render('joingame', { user : req.user, message : req.flash('message')  });
+		clearInvites(req.user, function()
+		{
+			res.render('joingame', { user : req.user, message : req.flash('message')  });
+		});
 	});
 	
 	/* Logout Page */
@@ -332,9 +417,15 @@ module.exports = function(passport)
 		failureFlash    : true
 	}));
 	
+	/* Login */
+	router.post('/login', passport.authenticate('login', {
+		successRedirect : '/home' ,
+		failureRedirect : '/'     ,
+		failureFlash    : true  
+	}));
 	
 	/* Start Game */
-	router.post('/startgame', isHostingGame, gameHasNotStarted, function(req, res)
+	router.post('/startgame', gameHasNotStarted, function(req, res)
 	{
 		var user = req.user;
 		var game = user.hostedGame;
@@ -342,38 +433,27 @@ module.exports = function(passport)
 		var trapSize = parseFloat(req.body.trapsize) ;
 		var trapLife = parseFloat(req.body.traplife) ;
 		
+		console.log(trapSize + ", " + trapLife);
+		
 		if(isNaN(trapSize) || isNaN(trapLife))
 			res.redirect("/creategame");
 		
-		game.trapSize = trapSize;
-		game.trapLife = trapLife;
+		game.trapSize = trapSize ;
+		game.trapLife = trapLife ;
+		game.started  = true     ;
 		
 		// All players who accepted invites are pointed at game, and get their invites cleared
 		forEachPlayerInGame(
 			game,
 			function(player, done)
 			{
-				var invites = player.invites;
-				
-				for(var i = 0; i < invites.length; i++)
+				clearInvites(player, function()
 				{
-					var invite = invites[i];
-					
-					if(invite.host == user && invite.accepted)
+					clearClientPlayers(player, function()
 					{
-						player.hosteOfGame = user;
-						player.invites = [];
-						
-						player.save(function (err)
-						{
-							if (err) return console.error(err);
-							
-							done();
-						});
-						
-						break;
-					}
-				}
+						done();
+					});
+				});
 			},
 			function()
 			{
@@ -387,18 +467,60 @@ module.exports = function(passport)
 		);
 	});
 	
-	/* Login */
-	router.post('/login', passport.authenticate('login', {
-		successRedirect : '/home' ,
-		failureRedirect : '/'     ,
-		failureFlash    : true  
-	}));
-	
-	
 	/* Retrieve Accepted Invites */
 	router.post('/gameinvitestatus', isHostingGame, gameHasNotStarted, function(req, res)
 	{
+		var user = req.user;
+		var game = user.hostedGame;
+		var playersProcessed = 0;
 		
+		var invites = [];
+		
+		for(var p = 0; p < game.players.length; p++)
+		{
+			(function(pWrapper)
+			{
+				getUserByID(pWrapper.link, function(player)
+				{
+					playersProcessed++;
+					
+					invites.push({
+						username : player.username ,
+						color    : pWrapper.color
+					});
+					
+					if(playersProcessed >= game.players.length)
+						res.send(invites);
+				});
+			})(game.players[p])
+		}
+	});
+	
+	/* Retrieve invites for current player */
+	router.post('/invites', isAuthenticated, function(req, res)
+	{
+		var invites = req.user.invites;
+		var resInvites = [];
+		
+		if(invites.length == 0)
+		{
+			res.send([]);
+			return;
+		}
+		
+		for(var i = 0; i < invites.length; i++)
+		{
+			(function(invite)
+			{
+				getUserByID(resInvites.host, function(host)
+				{
+					resInvites.push({ hostName : host.username, accepted : invite.accepted });
+					
+					if(resInvites.length >= invites.length)
+						res.send(resInvites);
+				});
+			})(invites[i])
+		}
 	});
 	
 	/* Accept Invite */
@@ -412,30 +534,31 @@ module.exports = function(passport)
 		
 		for(var i = 0; i < invites.length; i++)
 		{
-			var invite = invites[i];
-			
-			getUserByID(invite.host, function(host)
+			(function(invite)
 			{
-				if(host.username == hostname)
+				getUserByID(invite.host, function(host)
 				{
-					inviteFound = true;
-					invite.accepted = true;
-				}
-				else
-				{
-					invite.accepted = false; // make sure only one invite is accepted
-				}
-				
-				user.save(function (err)
-				{
-					if (err) return handleError(err);
+					if(host.username == hostname)
+					{
+						inviteFound = true;
+						invite.accepted = true;
+					}
+					else
+					{
+						invite.accepted = false; // make sure only one invite is accepted
+					}
 					
-					invCount++;
-					
-					if(invCount == invites.length)
-						res.send(inviteFound);
+					user.save(function (err)
+					{
+						if (err) return handleError(err);
+						
+						invCount++;
+						
+						if(invCount == invites.length)
+							res.send(inviteFound);
+					});
 				});
-			});
+			})(invites[i]) // inside of loop is asynchronous, so we must create a closure for any variables that change over the loop
 		}
 	});
 	
@@ -443,15 +566,12 @@ module.exports = function(passport)
 	router.post('/inviteplayer', gameHasNotStarted, function(req, res)
 	{
 		var user = req.user;
-		console.log("before check");
+		
 		if(user.username == req.body.username)
 		{
-			console.log("matched");
 			res.send(false);
 			return;
 		}
-		
-		console.log("before getUser");
 		
 		
 		getUserByName(req.body.username, function(newPlayer)
@@ -461,7 +581,6 @@ module.exports = function(passport)
 				res.send(false);
 				return;
 			}
-			console.log(2);
 			
 			playerInGame(
 				newPlayer, user.hostedGame,
@@ -472,18 +591,35 @@ module.exports = function(passport)
 					},
 					no  : function()
 					{
+						for(var i = 0; i < newPlayer.invites.length; i++)
+						{
+							if(newPlayer.invites[i].host == user.username)
+							{
+								res.send(true);
+								return;
+							}
+						}
+						
 						newPlayer.invites.push({
-							from     : user ,
-							accepted : false
+							host     : user ,
+							accepted : true    // TODO: for now there is no unaccepted state
 						});
 						
 						newPlayer.save(function (err)
 						{
 							if (err) return handleError(err);
 							
-							console.log('Player ' + newPlayer.username + ' invited to ' + user.username + '\'s game');
-							
-							res.send(true);
+							user.hostedGame.players.push({
+								link  : newPlayer       ,
+								color : playerColors[user.hostedGame.players.length % playerColors.length] ,
+								locs  : []
+							});
+							user.save(function (err)
+							{
+								if (err) return handleError(err);
+								
+								res.send(true);
+							});
 						});
 					}
 				}
@@ -577,3 +713,11 @@ module.exports = function(passport)
 
 	return router;
 };
+
+
+
+
+
+
+
+

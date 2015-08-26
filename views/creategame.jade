@@ -2,7 +2,7 @@ extends layout
 
 block content
 	h1.text-center.login-title Create New Game
-	form#GameForm.form-create(action='/creategame', method='POST')
+	form#GameForm.form-create(action='/startgame', method='POST')
 		
 		
 		div.input-group
@@ -11,12 +11,12 @@ block content
 		div.input-group
 			input.form-control( type='text', name='traplife', placeholder='Trap Life', required )
 			span.input-group-addon days
+		
+		ul#Players.dynamic-list
+		input#NewPlayer.form-control( type='text', placeholder='Player' )
 	
-	ul#Players.dynamic-list
-	input#NewPlayer.form-control( type='text', placeholder='Player' )
-	
-	button#InvitePlayer.btn.btn-lg.btn-block           Invite Player
-	button#CreateGame.btn.btn-lg.btn-primary.btn-block Start Game
+		a#InvitePlayer.btn.btn-lg.btn-block Invite Player
+		button#CreateGame.btn.btn-lg.btn-primary.btn-block(type='submit') Start Game
 	
 	a.btn.btn-lg.btn-default.btn-block(href='/joingame') Invites
 	a.text-center.new-account(href='/signout')           Sign Out

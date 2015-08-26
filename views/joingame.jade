@@ -3,6 +3,8 @@ extends layout
 block content
 	h1.text-center.login-title Invites
 	
-	a.btn.btn-lg.btn-primary.btn-block(href='/creategame') Create Game
+	ul#Invites.dynamic-list
+	
+	a.btn.btn-lg.btn-default.btn-block(href='/creategame') Create Game
 	a.text-center(href='/signout') Sign Out
 	script(type='text/javascript', src='/javascripts/joingame.js')
