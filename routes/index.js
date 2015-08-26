@@ -443,22 +443,25 @@ module.exports = function(passport)
 	router.post('/inviteplayer', gameHasNotStarted, function(req, res)
 	{
 		var user = req.user;
-		
+		console.log("before check");
 		if(user.username == req.body.username)
 		{
+			console.log("matched");
 			res.send(false);
 			return;
 		}
 		
+		console.log("before getUser");
 		
 		
 		getUserByName(req.body.username, function(newPlayer)
 		{
-			if(!newPlayer || newPlayer.gameHost) // check for no player before handling other errors
+			if(!newPlayer || newPlayer.gameHost == user) // check for no player before handling other errors
 			{
 				res.send(false);
 				return;
 			}
+			console.log(2);
 			
 			playerInGame(
 				newPlayer, user.hostedGame,
