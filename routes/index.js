@@ -169,6 +169,8 @@ module.exports = function(passport)
 			score : currentUser.score
 		};
 		
+		console.log(currentUser.trap.dur);
+		
 		if(currentUser.trap.dur > 0)
 		{
 			info.trap = {
@@ -191,8 +193,10 @@ module.exports = function(passport)
 			lng : req.body.lng
 		};
 		
-		if(typeof userLoc.lat !== "number" || typeof userLoc.lng !== "number")
-			res.send({ set : false, hit : false, hits : [] });
+		console.log(userLoc);
+		
+//		if(typeof userLoc.lat !== "number" || typeof userLoc.lng !== "number")
+//			res.send({ set : false, hit : false, hits : [] });
 		
 		UserModel
 			.find({ "trap.dur" : { $gt : 0 } }, function(err, users)
@@ -223,7 +227,7 @@ module.exports = function(passport)
 							trapSetter.trap.dur--;
 							
 							if(currentUser.score < 0)
-								currentUser.score == 0;
+								currentUser.score = 0;
 							
 							trapSetter.save(function(err) {});
 						}

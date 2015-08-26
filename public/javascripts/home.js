@@ -11,6 +11,7 @@
 	var gameParams;
 	
 	var buttons = {};
+	var score;
 	
 	$(function()
 	{
@@ -19,6 +20,8 @@
 		buttons.setTrap   = $("#SetTrap")        ;
 		buttons.counter   = $("#Counter")        ;
 		buttons.updatePos = $("#UpdatePosition") ;
+		
+		score = $("#Score");
 		
 		map.css({"height" : map.width() + "px"});
 		
@@ -78,7 +81,14 @@
 			data    : playerLoc  ,
 			success : function(data)
 			{
-				// { set : !hitATrap, hits : hitTraps }
+				console.log(data);
+				
+				for(var m = 0; m < enemyTrapMarkers.length; m++)
+				{
+					enemyTrapMarkers[m].setMap(null);
+				}
+				
+				enemyTrapMarkers = [];
 				
 				for(var h = 0; h < data.hits.length; h++)
 				{
@@ -151,6 +161,8 @@
 					
 					delete markers.player[m];
 				}
+				
+				score.text(playerInfo.score);
 				
 				if(playerInfo.trap)
 					markers.player.trap = gMap.drawRadius(playerInfo.trap, gameParams.trapSize, "blue");

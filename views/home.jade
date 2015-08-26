@@ -5,11 +5,11 @@ block content
 	div#Map
 	
 	button#SetTrap.btn.btn-lg.btn-primary.btn-block        Set Trap
-	button#Counter.btn.btn-lg.btn-default.btn-block        Use Counter Measure
-	button#UpdatePosition.btn.btn-lg.btn-default.btn-block Update Position
+	button#UpdatePosition.btn.btn-lg.btn-default.btn-block Update
 	span Signed in as #{user.username} (
 		a(href='/signout') Sign Out
-		| )
+		| ) Score: 
+		span#Score
 	
 	script(type='text/javascript', src='/javascripts/gmaps.js')
 	script(type='text/javascript', src='/javascripts/home.js')
