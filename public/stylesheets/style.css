@@ -26,7 +26,7 @@ ul.dynamic-list
 
 ul.dynamic-list > li
 {
-	padding:                    0.1em 1.5em 0.75em 1.5em;
+	padding:                    0em 1.5em 0.75em 1.5em;
 	position:                   relative;
 	margin:                     0.5em;
 	background-color:           #999;
@@ -59,6 +59,6 @@ ul.dynamic-list > li::after
 	float:                      right;
 	border-left:                1px solid white;
 	padding:                    0.1em 0.4em 0.1em 0.4em;
-	margin:                     0.55em -1em 0 0;
+	margin:                     0.65em -1em 0 0;
 	cursor:                     pointer;
 }

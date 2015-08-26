@@ -1,6 +1,5 @@
 var express   = require('express')        ;
 var router    = express.Router()          ;
-var GameModel = require('../models/game') ;
 var UserModel = require('../models/user') ;
 
 var playerOneColor = "green";
@@ -8,13 +7,155 @@ var playerColors = [ "red", "orange", "blue", "cyan", "purple" ]; // TODO: add m
 
 
 
+
+
+// ---------------------- SUPPORT FUNCTIONS ---------------------- //
+
+function leaveGame(user, callback)
+{
+	if(!user.gameHost)
+	{
+		callback();
+		return;
+	}
+	
+	user.gameHost = null;
+	user.save(function (err)
+	{
+		if (err) return console.error(err);
+		
+		callback();
+	});
+};
+
+function forEachPlayerInGame(game, each, callback)
+{
+	var players = game.players;
+	var playersProcessed = 0;
+	var breakOut = false;
+	
+	for(var p = 0; p < players.length; p++)
+	{
+		getUserByID(players[p].link, function(player)
+		{
+			each(
+				player,
+				function() // done function
+				{
+					playersProcessed++;
+					
+					if(callback && playersProcessed >= players.length)
+						callback();
+				}
+			);
+		});
+	}
+}
+
+function playerInGame(player, game, callbacks)
+{
+	var inGame = false;
+	
+	forEachPlayerInGame(
+		game,
+		function(inGamePlayer, done)
+		{
+			if(player == inGamePlayer)
+				inGame = true;
+			
+			done(); // TODO: make a break function for forEachPlayerInGame
+		},
+		function()
+		{
+			if(inGame && callbacks.yes)
+				callbacks.yes();
+			if(!inGame && callbacks.no)
+				callbacks.no();
+			if(callbacks.all)
+				callbacks.all(inGame);
+		}
+	);
+}
+
+function endHostedGame(user, callback)
+{
+	if(!user.hostedGame)
+	{
+		callback();
+		return;
+	}
+	
+	forEachPlayerInGame(
+		user.hostedGame,
+		function(player, done)
+		{
+			leaveGame(player, done);
+		},
+		function()
+		{
+			user.hostedGame = null;
+			user.save(function (err)
+			{
+				if (err) return console.error(err);
+				
+				callback();
+			});
+		}
+	);
+}
+
+function getGame(user, callback)
+{
+	if(!user.gameHost)
+	{
+		callback(null);
+		return;
+	}
+	
+	getUserByID(user.gameHost, function(host)
+	{
+		callback(host.hostedGame);
+	});
+}
+
+function getUserByID(userID, callback)
+{
+	getUser("_id", userID, callback);
+}
+
+function getUserByName(userName, callback)
+{
+	getUser("username", userName, callback);
+}
+
+function getUser(key, value, callback)
+{
+	var param = {};
+	param[key] = value;
+	
+	UserModel
+		.findOne(param)
+		.exec(function (err, user)
+		{
+			if (err) return console.error(err);
+			
+			callback(user);
+		});
+}
+
 function handleError(err)
 {
 	throw err; // TODO: something better than this, please
 }
 
 
-var isAuthenticated = function (req, res, next)
+
+
+
+
+// ---------------------- ROUTING FUNCTIONS ---------------------- //
+
+var isAuthenticated = function (req, res, next)   // fail -> /
 {
 	if (req.isAuthenticated())
 		return next();
@@ -22,49 +163,90 @@ var isAuthenticated = function (req, res, next)
 	res.redirect('/');
 };
 
-
-// Make sure to ALWAYS call isAuthenticated before gameActive
-var gameActive = function (req, res, next)
+var isInGame = function (req, res, next)          // fail -> /creategame
 {
-	if(req.user.game)
+	isAuthenticated(req, res, function()
 	{
-		GameModel
-			.findOne({ _id: req.user.game })
-			.exec(function (err, game)
-			{
-				if (err) return handleError(err);
-				
-				if(game)
-				{
-					return next();
-				}
-				else
-				{
-					// so the user has a game, but it's no longer active.  Let's update the user
-					UserModel.update({ _id : req.user._id}, { game : null }, function(err)
-					{
-						if (err) return console.error(err);
-						//...
-					});
-					
-					res.redirect('creategame');
-				}
-			});
-	}
-	else
-	{
-		res.redirect('creategame');
-	}
+		var gameHost = req.user.gameHost;
+		
+		if(gameHost)
+			return next();
+		else
+			res.redirect('/creategame');
+	});
 };
 
-// Make sure to ALWAYS call isAuthenticated before gameNotActive
-var gameNotActive = function (req, res, next)
+var isNotInGame = function (req, res, next)       // fail -> /home
 {
-	if(!req.user.game)
-		return next();
-	else
-		res.redirect('home');
+	isAuthenticated(req, res, function()
+	{
+		var gameHost = req.user.gameHost;
+		
+		if(!gameHost)
+			return next();
+		else
+			res.redirect('/home');
+	});
 };
+
+var isHostingGame = function (req, res, next)     // fail -> /creategame
+{
+	isAuthenticated(req, res, function()
+	{
+		var gameHost = req.user.gameHost;
+		
+		if(gameHost == req.user)
+			return next();
+		else
+			res.redirect('/creategame');
+	});
+};
+
+var isNotHostingGame = function (req, res, next)  // fail -> /home
+{
+	isAuthenticated(req, res, function()
+	{
+		var gameHost = req.user.gameHost;
+		
+		if(gameHost != req.user)
+			return next();
+		else
+			res.redirect('/home');
+	});
+};
+
+var gameHasNotStarted = function (req, res, next) // fail -> /home
+{
+	isInGame(req, res, function()
+	{
+		getGame(req.user, function(game)
+		{
+			if(!game.started)
+				return next();
+			else
+				res.redirect('/home');
+		});
+	});
+};
+
+var gameHasStarted = function (req, res, next)    // fail -> /creategame
+{
+	isInGame(req, res, function()
+	{
+		getGame(req.user, function(game)
+		{
+			if(game.started)
+				return next();
+			else
+				res.redirect('/creategame');
+		});
+	});
+};
+
+
+
+
+
 
 module.exports = function(passport)
 {
@@ -84,21 +266,41 @@ module.exports = function(passport)
 	});
 	
 	/* Home Page */
-	router.get('/home', isAuthenticated, gameActive, function(req, res)
+	router.get('/home', gameHasStarted, function(req, res)
 	{
-		res.render('home', { user : req.user });
+		res.render('home', { user : req.user, message : req.flash('message') });
 	});
 	
 	/* Create Game Page */
-	router.get('/creategame', isAuthenticated, gameNotActive, function(req, res)
+	router.get('/creategame', gameHasNotStarted, function(req, res)
 	{
-		res.render('creategame', { user : req.user });
+		var user = req.user;
+		
+		user.hostedGame = {
+			players   : [{
+				link  : user            ,
+				color : playerColors[0] ,
+				locs  : []
+			}],
+			started   : false
+		};
+		
+		user.gameHost = user;
+		
+		user.save(function (err, user)
+		{
+			if (err) return console.error(err);
+			
+			res.redirect("/home");
+		});
+		
+		res.render('creategame', { user : req.user, message : req.flash('message')  });
 	});
 	
 	/* Join Game Page */
-	router.get('/joingame', isAuthenticated, gameNotActive, function(req, res)
+	router.get('/joingame', isNotInGame, function(req, res)
 	{
-		res.render('joingame', { user : req.user });
+		res.render('joingame', { user : req.user, message : req.flash('message')  });
 	});
 	
 	/* Logout Page */
@@ -107,7 +309,20 @@ module.exports = function(passport)
 		req.logout();
 		res.redirect('/');
 	});
-
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	// ---------------------- POST HANDLERS ---------------------- //
 	
 	/* Registration */
@@ -117,10 +332,12 @@ module.exports = function(passport)
 		failureFlash    : true
 	}));
 	
-	/* Create Game */
-	router.post('/creategame', isAuthenticated, gameNotActive, function(req, res)
+	
+	/* Start Game */
+	router.post('/startgame', isHostingGame, gameHasNotStarted, function(req, res)
 	{
 		var user = req.user;
+		var game = user.hostedGame;
 		
 		var trapSize = parseFloat(req.body.trapsize) ;
 		var trapLife = parseFloat(req.body.traplife) ;
@@ -128,29 +345,46 @@ module.exports = function(passport)
 		if(isNaN(trapSize) || isNaN(trapLife))
 			res.redirect("/creategame");
 		
-		var game = new GameModel({
-			trapSize : trapSize ,
-			trapLife : trapLife ,
-			host     : user     ,
-			users    : [{
-				link  : user            ,
-				color : playerColors[0] ,
-				locs  : []
-			}]
-		});
+		game.trapSize = trapSize;
+		game.trapLife = trapLife;
 		
-		game.save(function (err, game)
-		{
-			if (err) return console.error(err);
-			
-			UserModel.update({ _id : user._id}, { game : game }, function(err)
+		// All players who accepted invites are pointed at game, and get their invites cleared
+		forEachPlayerInGame(
+			game,
+			function(player, done)
 			{
-				if (err) return console.error(err);
-				//...
-			});
-			
-			res.redirect("/home");
-		});
+				var invites = player.invites;
+				
+				for(var i = 0; i < invites.length; i++)
+				{
+					var invite = invites[i];
+					
+					if(invite.host == user && invite.accepted)
+					{
+						player.hosteOfGame = user;
+						player.invites = [];
+						
+						player.save(function (err)
+						{
+							if (err) return console.error(err);
+							
+							done();
+						});
+						
+						break;
+					}
+				}
+			},
+			function()
+			{
+				user.save(function (err, game)
+				{
+					if (err) return console.error(err);
+					
+					res.redirect("/home");
+				});
+			}
+		);
 	});
 	
 	/* Login */
@@ -162,89 +396,108 @@ module.exports = function(passport)
 	
 	
 	/* Retrieve Accepted Invites */
-	router.post('/acceptedinvites', isAuthenticated, function(req, res)
+	router.post('/gameinvitestatus', isHostingGame, gameHasNotStarted, function(req, res)
 	{
 		
 	});
 	
 	/* Accept Invite */
-	router.post('/acceptinvite', isAuthenticated, gameNotActive, function(req, res)
+	router.post('/acceptinvite', isNotInGame, function(req, res)
 	{
-		var hostname = req.body.hostname ;
-		var invites  = req.user.invites  ;
-		var invCount = 0;
+		var user        = req.user          ;
+		var hostname    = req.body.hostname ;
+		var invites     = user.invites      ;
+		var invCount    = 0                 ;
+		var inviteFound = false             ;
 		
 		for(var i = 0; i < invites.length; i++)
 		{
 			var invite = invites[i];
 			
-			UserModel
-				.findOne({ _id : invite.from })
-				.exec(function (err, host)
+			getUserByID(invite.host, function(host)
+			{
+				if(host.username == hostname)
 				{
-					if(host.username == hostname)
-					{
-						invite.accepted = true;
-					}
-					else
-					{
-						invite.accepted = false; // make sure only one invite is accepted
-					}
+					inviteFound = true;
+					invite.accepted = true;
+				}
+				else
+				{
+					invite.accepted = false; // make sure only one invite is accepted
+				}
+				
+				user.save(function (err)
+				{
+					if (err) return handleError(err);
 					
-					host.save(function (err)
-					{
-						if (err) return handleError(err);
-						
-						invCount++;
-						
-						if(invCount == invites.length)
-							res.send(true);
-					});
+					invCount++;
+					
+					if(invCount == invites.length)
+						res.send(inviteFound);
 				});
+			});
 		}
 	});
 	
 	/* Invite Player */
-	router.post('/inviteplayer', isAuthenticated, gameNotActive, function(req, res)
+	router.post('/inviteplayer', gameHasNotStarted, function(req, res)
 	{
-		if(req.username == req.body.username)
+		var user = req.user;
+		
+		if(user.username == req.body.username)
 		{
 			res.send(false);
 			return;
 		}
 		
-		UserModel
-			.findOne({ username : req.body.username })
-			.exec(function (err, newPlayer)
+		
+		
+		getUserByName(req.body.username, function(newPlayer)
+		{
+			if(!newPlayer || newPlayer.gameHost) // check for no player before handling other errors
 			{
-				if(!newPlayer) // check for no player before handling other errors
+				res.send(false);
+				return;
+			}
+			
+			playerInGame(
+				newPlayer, user.hostedGame,
 				{
-					res.send(false);
-					return;
+					yes : function()
+					{
+						res.send(false);
+					},
+					no  : function()
+					{
+						newPlayer.invites.push({
+							from     : user ,
+							accepted : false
+						});
+						
+						newPlayer.save(function (err)
+						{
+							if (err) return handleError(err);
+							
+							console.log('Player ' + newPlayer.username + ' invited to ' + user.username + '\'s game');
+							
+							res.send(true);
+						});
+					}
 				}
-				
-				if (err) return handleError(err);
-				
-				newPlayer.invites.push({
-					from     : req.user ,
-					accepted : false
-				});
-				
-				newPlayer.save(function (err)
-				{
-					if (err) return handleError(err);
-					
-					console.log('Player ' + newPlayer.username + ' invited to ' + req.user.username + '\'s game');
-					
-					res.send(true);
-				});
-			});
+			);
+		});
 	});
 	
 	/* Get Game Parameters */
-	router.post('/getgameparams', isAuthenticated, gameActive, function(req, res)
+	router.post('/getgameparams', gameHasStarted, function(req, res)
 	{
+		/*
 		var now = new Date().getTime() ;
+		
+		getGame(req.user, function(game)
+		{
+			
+		});
 		
 		GameModel
 			.findOne({ _id: req.user.game })
@@ -308,13 +561,13 @@ module.exports = function(passport)
 						});
 				}
 			});
+	*/
 	});
 	
 	/* Set Trap */
-	router.post('/settrap', isAuthenticated, gameNotActive, function(req, res)
+	router.post('/settrap', gameHasStarted, function(req, res)
 	{
 		var user = req.user  ;
-		var game = user.game ;
 		
 		
 	});

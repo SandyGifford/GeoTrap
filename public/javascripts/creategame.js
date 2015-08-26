@@ -27,11 +27,15 @@ $(function()
 				},
 				success  : function(itWorked)
 				{
-					if(itWorked)
+					if(typeof itWorked == "boolean" && itWorked)
 					{
 						var li = $("<li>")
 							.text(username)
 							.appendTo(playerList);
+						
+						$("<i>")
+							.addClass(dynamic-list-addon fa fa-times)
+							.appendTo(li);
 						
 						players[username] = {
 							el : li
