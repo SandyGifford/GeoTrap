@@ -8,12 +8,17 @@ var playerColors = [ "red", "orange", "blue", "cyan", "purple" ]; // TODO: add m
 
 // needs a better home
 var gameInfo = {
-	trapSize     : 500  , // Meters
-	goalSize     : 2000 , // Meters
-	trapStartDur : 3    , // Hits until expired
-	goalPoints   : 10   ,
-	trapPenalty  : 2    , // Penalty for setting off a trap
-	trapPoints   : 1      // Points for getting someone in your trap+
+	trapSize     : 500   , // Meters
+	goalSize     : 2000  , // Meters
+	trapStartDur : 3     , // Hits until expired
+	goalPoints   : 10    , // Points for dropping a trap in a goal
+	trapPenalty  : 2     , // Penalty for setting off a trap
+	trapPoints   : 1     , // Points for getting someone in your trap+
+	gameRadius   : 10000 , // Meters
+	gameCenter   : {
+		lat : 40.71  ,
+		lng : -74.01
+	}
 };
 
 
@@ -74,6 +79,19 @@ function handleError(err)
 	throw err; // TODO: something better than this, please
 }
 
+function dropNewGoal()
+{
+	var theta = Math.random() * 2 * Math.PI         ;
+	var r     = Math.random() * gameInfo.gameRadius ;
+	
+	var latOfst = r * Math.sin(theta);
+	var lngOfst = r * Math.cos(theta);
+	
+	var goalLoc = {
+		lat : latOfst + gameCenter.lat,
+		lng : lngOfst + gameCenter.lng
+	};
+}
 
 
 
