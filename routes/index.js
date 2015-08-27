@@ -13,7 +13,7 @@ var gameInfo = {
 	trapStartDur : 3     , // Hits until expired
 	goalPoints   : 10    , // Points for dropping a trap in a goal
 	trapPenalty  : 2     , // Penalty for setting off a trap
-	trapPoints   : 1     , // Points for getting someone in your trap+
+	trapPoints   : 3     , // Points for getting someone in your trap+
 	gameRadius   : 10000 , // Meters
 	gameCenter   : {
 		lat : 40.71  ,
@@ -91,6 +91,8 @@ function dropNewGoal()
 		lat : latOfst + gameCenter.lat,
 		lng : lngOfst + gameCenter.lng
 	};
+	
+	
 }
 
 
