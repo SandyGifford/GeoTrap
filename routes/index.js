@@ -2,6 +2,7 @@ var express   = require('express')        ;
 var router    = express.Router()          ;
 var geolib    = require('geolib')         ;
 var UserModel = require('../models/user') ;
+var GoalModel = require('../models/goal') ;
 
 var playerOneColor = "green";
 var playerColors = [ "red", "orange", "blue", "cyan", "purple" ]; // TODO: add more colors
@@ -81,20 +82,39 @@ function handleError(err)
 
 function dropNewGoal()
 {
-	var theta = Math.random() * 2 * Math.PI         ;
-	var r     = Math.random() * gameInfo.gameRadius ;
+	var loc = randomLatLngInRadius(gameInfo.gameCenter.lat, gameInfo.gameCenter.lng, gameInfo.gameRadius);
 	
-	var latOfst = r * Math.sin(theta);
-	var lngOfst = r * Math.cos(theta);
+	var goal = new GoalModel({
+		lat : loc.lat ,
+		lon : loc.lng ,
+		exp : 0
+	});
 	
-	var goalLoc = {
-		lat : latOfst + gameCenter.lat,
-		lng : lngOfst + gameCenter.lng
-	};
-	
-	
+	goal.save(function (err, goal)
+	{
+		if (err) return console.error(err);
+	});
 }
 
+// picks a random lat/lng in a given radius around a given point.  Really rough approximation with uneven distribution but it works.
+function randomLatLngInRadius(lat, lng, r)
+{
+	return latLngAtDist(lat, lng, Math.random() * r, Math.random() * 360);
+}
+
+// gets a lat/lng a given distance from a given point at a given angle.  Does all the trig in a plane then projects that onto an (oblong) globe - only really accurate over short distances, but, again, none of this needs to be super precise.
+function latLngAtDist(lat, lng, dist, angle)
+{
+	angle *= Math.PI / 180;
+	
+	var dx = dist * Math.cos(angle);
+	var dy = dist * Math.sin(angle);
+	
+	var dLat = dx / (111320 * Math.cos(lat)) ;
+	var dLng = dx / 110540                   ;
+	
+	return { lat : lat + dLat, lng : lng += dLng };
+}
 
 
 
@@ -189,8 +209,6 @@ module.exports = function(passport)
 			score : currentUser.score
 		};
 		
-		console.log(currentUser.trap.dur);
-		
 		if(currentUser.trap.dur > 0)
 		{
 			info.trap = {
@@ -212,8 +230,6 @@ module.exports = function(passport)
 			lat : req.body.lat ,
 			lng : req.body.lng
 		};
-		
-		console.log(userLoc);
 		
 //		if(typeof userLoc.lat !== "number" || typeof userLoc.lng !== "number")
 //			res.send({ set : false, hit : false, hits : [] });
