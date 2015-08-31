@@ -4,11 +4,12 @@
 		player   : {},
 		location : {}
 	};
-	var playerLoc = {};
-	var trapSize, trapLife;
-	var map;
+	
+	var playerLoc        = {};
 	var enemyTrapMarkers = [];
-	var gameParams;
+	var goalMarkers      = [];
+	
+	var trapSize, trapLife, map, gameParams;
 	
 	var buttons = {};
 	var score;
@@ -43,6 +44,18 @@
 		});
 	});
 	
+	function getGameInfo(callback)
+	{
+		$.ajax({
+			type    : "POST"         ,
+			url     : "/gameinfo"  ,
+			success : function(data)
+			{
+				if(callback)
+					callback(data);
+			}
+		});
+	}
 	
 	function startGame(callback)
 	{
@@ -104,9 +117,38 @@
 	{
 		disableButtons();
 		
-		updateLocation(function()
+		updateGame(function()
 		{
-			updatePlayer(enableButtons);
+			updateLocation(function()
+			{
+				updatePlayer(enableButtons);
+			});
+		});
+	}
+	
+	function updateGame(callback)
+	{
+		getGameInfo(function(data)
+		{
+			var goals = data.goals;
+			
+			for(var m = 0; m < goalMarkers.length; m++)
+			{
+				goalMarkers[m].setMap(null);
+			}
+			
+			goalMarkers = [];
+			
+			for(var g = 0; g < goals.length; g++)
+			{
+				goalMarkers.push(gMap.drawRadius(
+					{ lat : goals[g].lat, lng : goals[g].lng },
+					gameParams.goalSize, "orange"
+				));
+			}
+			
+			if(callback)
+				callback();
 		});
 	}
 	

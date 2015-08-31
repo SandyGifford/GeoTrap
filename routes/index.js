@@ -9,10 +9,11 @@ var playerColors = [ "red", "orange", "blue", "cyan", "purple" ]; // TODO: add m
 
 // needs a better home
 var gameInfo = {
-	trapSize     : 500   , // Meters
 	goalSize     : 2000  , // Meters
-	trapStartDur : 3     , // Hits until expired
 	goalPoints   : 10    , // Points for dropping a trap in a goal
+	goalCount    : 3     ,
+	trapSize     : 500   , // Meters
+	trapStartDur : 3     , // Hits until expired
 	trapPenalty  : 2     , // Penalty for setting off a trap
 	trapPoints   : 3     , // Points for getting someone in your trap+
 	gameRadius   : 10000 , // Meters
@@ -80,20 +81,42 @@ function handleError(err)
 	throw err; // TODO: something better than this, please
 }
 
-function dropNewGoal()
+function dropNewGoal(callback)
 {
 	var loc = randomLatLngInRadius(gameInfo.gameCenter.lat, gameInfo.gameCenter.lng, gameInfo.gameRadius);
 	
 	var goal = new GoalModel({
 		lat : loc.lat ,
-		lon : loc.lng ,
+		lng : loc.lng ,
 		exp : 0
 	});
 	
 	goal.save(function (err, goal)
 	{
 		if (err) return console.error(err);
+		
+		if(callback)
+			callback(goal);
 	});
+}
+
+function dropNGoals(n, callback)
+{
+	var goals = [];
+	
+	for(var i = 0; i < n; i++)
+	{
+		dropNewGoal(function(goal)
+		{
+			if (err) return console.error(err);
+			
+			goals.push(goal);
+			
+			if(goals.length >= n)
+				if(callback)
+					callback(goals);
+		});
+	}
 }
 
 // picks a random lat/lng in a given radius around a given point.  Really rough approximation with uneven distribution but it works.
@@ -116,6 +139,28 @@ function latLngAtDist(lat, lng, dist, angle)
 	return { lat : lat + dLat, lng : lng += dLng };
 }
 
+function getGoals(callback)
+{
+	GoalModel.find(function(err, goals)
+	{
+		if (err) return console.error(err);
+		
+		var ret = [];
+		
+		console.log("\r\n\r\n\r\ngetting goals");
+		console.log(goals);
+		console.log("\r\n\r\n\r\n");
+		
+		for(var g = 0; g < goals.length; g++)
+		{
+			// TODO: check expiration, remove if past
+			ret.push({ lat : goals[g].lat, lng : goals[g].lng });
+		}
+		
+		if(callback)
+			callback(ret);
+	});
+}
 
 
 
@@ -198,6 +243,34 @@ module.exports = function(passport)
 	/* Get Game Info - data updates over the course of the game */
 	router.post('/gameinfo', isAuthenticated, function(req, res)
 	{
+		getGoals(function(goals)
+		{
+			console.log("\r\n\r\n\r\ngot goals 1");
+			console.log(goals);
+			console.log("\r\n\r\n\r\n");
+			
+			var goalDeficit = gameInfo.goalCount - goals.length;
+			
+			console.log("def - " + goalDeficit);
+			
+			if(goalDeficit > 0)
+			{
+				dropNGoals(goalDeficit, function()
+				{
+					getGoals(function(goals) // TODO: this double call to getGoals is crap...
+					{
+						console.log("\r\n\r\n\r\ngot goals 2");
+						console.log(goals);
+						console.log("\r\n\r\n\r\n");
+						res.send({ goals : goals });
+					});
+				});
+			}
+			else
+			{
+				res.send({ goals : goals });
+			}
+		});
 	});
 	
 	/* Get Player Info */
