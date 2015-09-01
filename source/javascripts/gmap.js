@@ -1,26 +1,21 @@
 var $ = require('jquery');
 
-
 // TODO: this file is a little bit purpose built.  Clean it up, make a new repository for it.
+
+var mapLoaded = false;
+var mapEl;
+var map;
+var loadCallback;
+
+var messages = {
+  geoNotAvail : "It looks like your browser doesn't support Geolocation - try a different browser",
+  geoFailed   : "Could not get Geolocation.  Do you have it disabled?"
+};
 
 var initMap;
 
-var gMap = {};
-
-
-(function($)
-{
-  var mapLoaded  = false;
-  var mapEl;
-  var map;
-  var loadCallback;
-  
-  var messages = {
-    geoNotAvail : "It looks like your browser doesn't support Geolocation - try a different browser",
-    geoFailed   : "Could not get Geolocation.  Do you have it disabled?"
-  };
-  
-  gMap.load = function(mapElement, callback)
+module.exports = {
+  load: function(mapElement, callback)
   {
     if(mapLoaded)
     {
@@ -39,12 +34,12 @@ var gMap = {};
       .attr("defer", "")
       .attr("src",   "https://maps.googleapis.com/maps/api/js?key=AIzaSyCVITkGMRa8bqrjXhSfFkzz3kz7Jz-yXig&callback=initMap")
       .appendTo($("body"));
-  };
+  },
   
   // Just a simplified draw circle routine
-  gMap.drawRadius = function(loc, radius, color)
+  drawRadius: function(loc, radius, color)
   {
-    return gMap.drawCircle({
+    return this.drawCircle({
       radius        : radius     ,
       strokeColor   : color      ,
       strokeOpacity : 0.8        ,
@@ -53,28 +48,28 @@ var gMap = {};
       fillOpacity   : 0.35       ,
       center        : loc
     });
-  };
+  },
   
-  gMap.drawCircle = function(options)
+  drawCircle: function(options)
   {
     options.map = map;
     
     return new google.maps.Circle(options);
-  };
+  },
   
-  gMap.dropMarker = function(options)
+  dropMarker: function(options)
   {
     options.map = map;
     
     return new google.maps.Marker(options);
-  };
+  },
   
-  gMap.fitBounds = function(circle)
+  fitBounds: function(circle)
   {
     map.fitBounds(circle.getBounds());
-  };
+  },
   
-  gMap.centerOnGeoloc = function(callback)
+  centerOnGeoloc: function(callback)
   {
     if(!map)
       return;
@@ -96,33 +91,33 @@ var gMap = {};
         alert(messages.geoFailed);
       }
     );
+  }
+};
+  
+window.initMap = function()
+{
+  var myOptions = {
+    zoom               : 6                             ,
+    mapTypeId          : google.maps.MapTypeId.ROADMAP ,
+    panControl         : false                         ,
+    zoomControl        : true                          ,
+    mapTypeControl     : false                         ,
+    scaleControl       : true                          ,
+    streetViewControl  : false                         ,
+    overviewMapControl : false
   };
   
-  initMap = function()
+  map = new google.maps.Map(mapEl[0], myOptions);
+  
+  // Try W3C Geolocation (Preferred)
+  if(navigator.geolocation)
   {
-    var myOptions = {
-      zoom               : 6                             ,
-      mapTypeId          : google.maps.MapTypeId.ROADMAP ,
-      panControl         : false                         ,
-      zoomControl        : true                          ,
-      mapTypeControl     : false                         ,
-      scaleControl       : true                          ,
-      streetViewControl  : false                         ,
-      overviewMapControl : false
-    };
-    
-    map = new google.maps.Map(mapEl[0], myOptions);
-    
-    // Try W3C Geolocation (Preferred)
-    if(navigator.geolocation)
-    {
-      if(loadCallback)
-        loadCallback();
-    }
-    // Browser doesn't support Geolocation
-    else
-    {
-      alert(messages.geoNotAvail);
-    }
-  };
-})(jQuery);
+    if(loadCallback)
+      loadCallback();
+  }
+  // Browser doesn't support Geolocation
+  else
+  {
+    alert(messages.geoNotAvail);
+  }
+};
