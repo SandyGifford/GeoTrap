@@ -5,9 +5,6 @@
 var $ = require('jquery');
 var gMap = require('./gmap');
 
-
-
-
 var markers = {
   player   : {},
   location : {}
