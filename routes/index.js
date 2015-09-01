@@ -9,14 +9,14 @@ var playerColors = [ "red", "orange", "blue", "cyan", "purple" ]; // TODO: add m
 
 // needs a better home
 var gameInfo = {
-	goalSize     : 2000  , // Meters
-	goalPoints   : 10    , // Points for dropping a trap in a goal
-	goalCount    : 3     ,
-	trapSize     : 500   , // Meters
-	trapStartDur : 3     , // Hits until expired
-	trapPenalty  : 2     , // Penalty for setting off a trap
-	trapPoints   : 3     , // Points for getting someone in your trap+
-	gameRadius   : 10000 , // Meters
+	goalSize     : 1000 , // Meters
+	goalPoints   : 10   , // Points for dropping a trap in a goal
+	goalCount    : 3    ,
+	trapSize     : 500  , // Meters
+	trapStartDur : 3    , // Hits until expired
+	trapPenalty  : 2    , // Penalty for setting off a trap
+	trapPoints   : 3    , // Points for getting someone in your trap+
+	gameRadius   : 5000 , // Meters
 	gameCenter   : {
 		lat : 40.71  ,
 		lng : -74.01
@@ -147,10 +147,6 @@ function getGoals(callback)
 		
 		var ret = [];
 		
-		console.log("\r\n\r\n\r\ngetting goals");
-		console.log(goals);
-		console.log("\r\n\r\n\r\n");
-		
 		for(var g = 0; g < goals.length; g++)
 		{
 			// TODO: check expiration, remove if past
@@ -245,13 +241,7 @@ module.exports = function(passport)
 	{
 		getGoals(function(goals)
 		{
-			console.log("\r\n\r\n\r\ngot goals 1");
-			console.log(goals);
-			console.log("\r\n\r\n\r\n");
-			
 			var goalDeficit = gameInfo.goalCount - goals.length;
-			
-			console.log("def - " + goalDeficit);
 			
 			if(goalDeficit > 0)
 			{
@@ -259,9 +249,6 @@ module.exports = function(passport)
 				{
 					getGoals(function(goals) // TODO: this double call to getGoals is crap...
 					{
-						console.log("\r\n\r\n\r\ngot goals 2");
-						console.log(goals);
-						console.log("\r\n\r\n\r\n");
 						res.send({ goals : goals });
 					});
 				});
@@ -298,6 +285,8 @@ module.exports = function(passport)
 	{
 		var currentUser = req.user ;
 		var hitTraps    = []       ;
+		var message     = ""       ;
+		var safeToSet   = true     ;
 		
 		var userLoc     = {
 			lat : req.body.lat ,
@@ -314,7 +303,7 @@ module.exports = function(passport)
 				{
 					var trapSetter = users[u];
 					
-					if(trapSetter != currentUser)
+					if(trapSetter._id != currentUser._id)
 					{
 						var dist = geolib.getDistance(
 							{ latitude : trapSetter.trap.lat, longitude : trapSetter.trap.lng },
@@ -324,6 +313,8 @@ module.exports = function(passport)
 						// hit trap
 						if(dist < gameInfo.trapSize)
 						{
+							safeToSet = false;
+							
 							hitTraps.push({
 								setter : trapSetter.username ,
 								lat    : trapSetter.trap.lat ,
@@ -341,16 +332,32 @@ module.exports = function(passport)
 							trapSetter.save(function(err) {});
 						}
 					}
+					else
+					{
+						safeToSet = false;
+						message   = "Cannot place trap within range of existing trap";
+					}
 				}
 				
 				var hitATrap = hitTraps.length > 0;
 				
-				if(!hitATrap)
+				if(safeToSet)
+				{
 					setTrap(currentUser, userLoc.lat, userLoc.lng);
+					getGoals(function(goals)
+					{
+						
+					});
+				}
 				
 				currentUser.save(function(err)
 				{
-					res.send({ set : !hitATrap, hit : hitATrap, hits : hitTraps });
+					var ret = { set : safeToSet, hit : hitATrap, hits : hitTraps };
+					
+					if(message)
+						ret.message = message;
+					
+					res.send(ret);
 				});
 			});
 	});
